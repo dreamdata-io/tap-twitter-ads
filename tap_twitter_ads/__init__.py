@@ -41,6 +41,18 @@ def get_credentials():
 
     if not credentials or credentials == "":
         # Get new credentials
+        # credentials_file = open(credential_path, "w+")
+
+        # Step 1: Obtain a request token which will identify you (the client) in the next step.
+        # At this stage you will only need your consumer key and secret.
+        oauth = OAuth1Session(
+            CONFIG["consumer_key"],
+            client_secret=CONFIG["consumer_secret"],
+            callback_uri="http://localhost:3000/oauth/validate",
+        )
+        fetch_response = oauth.fetch_request_token(CONFIG["request_token_url"])
+        resource_owner_key = fetch_response.get("oauth_token")
+        resource_owner_secret = fetch_response.get("oauth_token_secret")
 
     return credentials
 
