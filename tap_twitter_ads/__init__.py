@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 
 import asyncio
+import json
+import os
 
 import singer
 
 from singer import utils, metadata, metrics, Transformer
+from requests_oauthlib import OAuth1Session
 
 LOGGER = singer.get_logger()
 
@@ -20,10 +23,34 @@ REQUIRED_CONFIG_KEYS = [
     "consumer_secret",
 ]
 
+CREDENTIALS_FILENAME = "twitter.json"
+
+
+def get_credentials():
+    """ Get credentials """
+
+    credential_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), CREDENTIALS_FILENAME
+    )
+    credentials = ""
+    if os.path.exists(credential_path):
+        with open(credential_path, "r") as file:
+            twitter_credentials = file.read()
+            if twitter_credentials:
+                credentials = json.loads(twitter_credentials)
+
+    if not credentials or credentials == "":
+        # Get new credentials
+
+    return credentials
+
 
 def do_discover():
     LOGGER.info("Testing authentication")
-    # test_credentials(account_ids)
+
+    credentials = get_credentials()
+
+    print(credentials)
 
     LOGGER.info("Discovering core objects")
     # core_object_streams = discover_core_objects()

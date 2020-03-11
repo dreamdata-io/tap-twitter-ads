@@ -10,7 +10,11 @@ setup(
     url="http://singer.io",
     classifiers=["Programming Language :: Python :: 3 :: Only"],
     py_modules=["tap_twitter_ads"],
-    install_requires=["requests==2.20.0", "singer-python==5.9.0",],
+    install_requires=[
+        "requests==2.20.0",
+        "singer-python==5.9.0",
+        "requests_oauthlib==1.3.0",
+    ],
     extras_require={"dev": ["ipdb"]},
     entry_points="""
       [console_scripts]

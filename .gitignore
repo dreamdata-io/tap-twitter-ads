@@ -133,3 +133,5 @@ dmypy.json
 *catalog.json
 .vscode
 Pipfile*
+
+*twitter.json
