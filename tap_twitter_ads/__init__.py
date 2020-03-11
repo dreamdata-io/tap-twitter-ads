@@ -41,7 +41,7 @@ def get_credentials():
 
     if not credentials or credentials == "":
         # Get new credentials
-        # credentials_file = open(credential_path, "w+")
+        credentials_file = open(credential_path, "w+")
 
         # Step 1: Obtain a request token which will identify you (the client) in the next step.
         # At this stage you will only need your consumer key and secret.
@@ -67,6 +67,27 @@ def get_credentials():
         oauth_response = oauth.parse_authorization_response(redirect_response)
 
         oauth_verifier = oauth_response.get("oauth_verifier")
+
+        # Step 3: Obtain an access token from the OAuth provider. Save this token as it can be re-used later.
+        # In this step we will re-use most of the credentials obtained uptil this point.
+        oauth = OAuth1Session(
+            CONFIG["consumer_key"],
+            client_secret=CONFIG["consumer_secret"],
+            resource_owner_key=resource_owner_key,
+            resource_owner_secret=resource_owner_secret,
+            verifier=oauth_verifier,
+        )
+        oauth_tokens = oauth.fetch_access_token(CONFIG["access_token_url"])
+
+        new_credentials = {
+            "oauth_token": oauth_tokens.get("oauth_token"),
+            "oauth_token_secret": oauth_tokens.get("oauth_token_secret"),
+        }
+
+        credentials_file.write(json.dumps(new_credentials))
+        credentials_file.close()
+
+        credentials = new_credentials
 
     return credentials
 
