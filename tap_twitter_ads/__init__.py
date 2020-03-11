@@ -54,6 +54,20 @@ def get_credentials():
         resource_owner_key = fetch_response.get("oauth_token")
         resource_owner_secret = fetch_response.get("oauth_token_secret")
 
+        # Step 2: Obtain authorization from the user (resource owner) to access their protected resources.
+        # This is commonly done by redirecting the user to a specific url to which you add the request token as a query parameter.
+        # Note that not all services will give you a verifier even if they should.
+        # Also the oauth_token given here will be the same as the one in the previous step.
+
+        authorization_url = oauth.authorization_url(CONFIG["authorize_url"])
+        print("Please go here and authorize,", authorization_url)
+        redirect_response = input(
+            "Paste the full redirect URL here (with token and verifier): "
+        )
+        oauth_response = oauth.parse_authorization_response(redirect_response)
+
+        oauth_verifier = oauth_response.get("oauth_verifier")
+
     return credentials
 
 
