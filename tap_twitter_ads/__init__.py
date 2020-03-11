@@ -30,7 +30,8 @@ def get_credentials():
     """ Get credentials """
 
     credential_path = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), CREDENTIALS_FILENAME
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        CREDENTIALS_FILENAME,
     )
     credentials = ""
     if os.path.exists(credential_path):
