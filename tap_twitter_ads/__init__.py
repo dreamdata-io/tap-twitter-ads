@@ -14,74 +14,64 @@ LOGGER = singer.get_logger()
 CONFIG = {}
 STATE = {}
 
-REQUIRED_CONFIG_KEYS = [
-    "start_date",
-    "request_token_url",
-    "access_token_url",
-    "authorize_url",
-    "consumer_key",
-    "consumer_secret",
-]
+REQUIRED_CONFIG_KEYS = ["start_date", "consumer_key", "consumer_secret", "callback_uri"]
 
 CREDENTIALS_FILENAME = "twitter.json"
 
 
-def get_credentials() -> dict:
-    if CONFIG["oauth_token"] and CONFIG["oauth_secret_token"]:
+def get_credentials(
+    oauth_token=None,
+    oauth_secret_token=None,
+    consumer_key=None,
+    consumer_secret=None,
+    callback_uri=None,
+    **kwargs,
+) -> dict:
+    if oauth_token and oauth_secret_token:
         return {
-            "oauth_token": CONFIG["oauth_token"],
-            "oauth_secret_token": CONFIG["oauth_secret_token"],
+            "oauth_token": oauth_token,
+            "oauth_secret_token": oauth_secret_token,
         }
 
-    print("No oauth credentials in config.json. Getting new credentials.")
+    LOGGER.info("No oauth credentials in config.json. Getting new credentials.")
 
     # Step 1: Obtain a request token which will identify you (the client) in the next step.
     # At this stage you will only need your consumer key and secret.
-    oauth = OAuth1Session(
-        CONFIG["consumer_key"],
-        client_secret=CONFIG["consumer_secret"],
-        callback_uri="http://localhost:3000/oauth/validate",
-    )
-    fetch_response = oauth.fetch_request_token(CONFIG["request_token_url"])
-    resource_owner_key = fetch_response.get("oauth_token")
-    resource_owner_secret = fetch_response.get("oauth_token_secret")
+    oauth = OAuth1Session(consumer_key, consumer_secret, callback_uri=callback_uri)
+    # fetch_request_token stores tokens pair in the session object, but also returns it.
+    oauth.fetch_request_token("https://api.twitter.com/oauth/request_token")
 
     # Step 2: Obtain authorization from the user (resource owner) to access their protected resources.
     # This is commonly done by redirecting the user to a specific url to which you add the request token as a query parameter.
     # Note that not all services will give you a verifier even if they should.
-    # Also the oauth_token given here will be the same as the one in the previoushttp://localhost:3000/oauth/validate?oauth_token=5A_yPAAAAAABC-8IAAABcMpAXz4&oauth_verifier=ADO4HGkcRKfnKZUp3DOQppHwmxXeuEfL step.
-    authorization_url = oauth.authorization_url(CONFIG["authorize_url"])
-    print("Please go here and authorize,", authorization_url)
+    # Also the oauth_token given here will be the same as the one in the previous step.
+    authorization_url = oauth.authorization_url(
+        "https://api.twitter.com/oauth/authorize"
+    )
+    LOGGER.info(f"Please go here and authorize, {authorization_url}")
     redirect_response = input(
         "Paste the full redirect URL here (with token and verifier): "
     )
-    oauth_response = oauth.parse_authorization_response(redirect_response)
-
-    oauth_verifier = oauth_response.get("oauth_verifier")
+    # parse_authorization_response stores oauth_verifier in the session object, but also returns it.
+    oauth.parse_authorization_response(redirect_response)
 
     # Step 3: Obtain an access token from the OAuth provider. Save this token as it can be re-used later.
     # In this step we will re-use most of the credentials obtained uptil this point.
-    oauth = OAuth1Session(
-        CONFIG["consumer_key"],
-        client_secret=CONFIG["consumer_secret"],
-        resource_owner_key=resource_owner_key,
-        resource_owner_secret=resource_owner_secret,
-        verifier=oauth_verifier,
+    oauth_tokens = oauth.fetch_access_token(
+        "https://api.twitter.com/oauth/access_token"
     )
-    oauth_tokens = oauth.fetch_access_token(CONFIG["access_token_url"])
-
     return {
         "oauth_token": oauth_tokens.get("oauth_token"),
-        "oauth_token_secret": oauth_tokens.get("oauth_token_secret"),
+        "oauth_secret_token": oauth_tokens.get("oauth_token_secret"),
     }
 
 
 def do_discover():
     LOGGER.info("Testing authentication")
 
-    credentials = get_credentials()
+    credentials = get_credentials(**CONFIG)
 
-    print(credentials)
+    LOGGER.info(f"Credentials: {credentials}")
 
     LOGGER.info("Discovering core objects")
     # core_object_streams = discover_core_objects()
