@@ -58,7 +58,15 @@ def main():
 
     catalog = parsed_args.catalog
 
-    reports = config.get("reports", {})
+    # reports = config.get("reports", {})
+    reports = [
+        {
+            "name": "campaign_events",
+            "entity": "CAMPAIGN",
+            "segment": "NO_SEGMENT",
+            "granularity": "DAY",
+        }
+    ]
 
     if parsed_args.discover:
         do_discover(reports)
