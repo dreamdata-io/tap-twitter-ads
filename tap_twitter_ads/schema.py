@@ -73,11 +73,27 @@ def load_shared_schema_refs():
     return shared_schema_refs
 
 
+def nested_set(dic, keys, value):
+    for key in keys[:-1]:
+        dic = dic.setdefault(key, {})
+    dic[keys[-1]] = value
+
+
+def nested_ref_replace(schema, obj, refs, path=None):
+    if not path:
+        path = []
+
+    for k, v in obj.items():
+        if isinstance(v, dict):
+            nested_ref_replace(schema, v, refs, path=path + [k])
+        elif k == "$ref":
+            nested_set(schema, path, refs[v])
+
+
 def resolve_schema_references(schema, refs):
-    if '$ref' in schema['properties']:
-        link = schema['properties']['$ref']
-        schema['properties'].update(refs[link])
-        schema['properties']['$ref']
+    if "__sdc_dimensions_hash_key" in schema["properties"]:
+        nested_ref_replace(schema, schema, refs)
+        nested_ref_replace(schema, schema, refs)
 
 
 def get_schemas(reports):
@@ -89,12 +105,12 @@ def get_schemas(reports):
 
     # JSON schemas for each stream endpoint
     for stream_name, stream_metadata in flat_streams.items():
-        schema_path = get_abs_path('schemas/{}.json'.format(stream_name))
+        schema_path = get_abs_path("schemas/{}.json".format(stream_name))
         with open(schema_path) as file:
             schema = json.load(file)
 
         schemas[stream_name] = schema
-        resolve_schema_references(schema, refs)
+        # resolve_schema_references(schema, refs)
         mdata = metadata.new()
 
         # Documentation:
