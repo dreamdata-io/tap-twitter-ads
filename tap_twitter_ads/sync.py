@@ -866,10 +866,10 @@ def sync_report(
     # Initialize date window
     if report_segment:
         # Max is 45 days (segmented), set lower to avoid date/hour rounding issues
-        date_window_size = 42 # is the Answer
+        date_window_size = 30  # is the Answer
     else:
         # Max is 90 days, set lower to avoid date/hour rounding issues
-        date_window_size = 85
+        date_window_size = 75
     window_start = abs_start
     window_end = abs_start + timedelta(days=date_window_size)
     window_start_rounded = None
