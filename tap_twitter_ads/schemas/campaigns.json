@@ -13,17 +13,7 @@
       "format": "date-time"
     },
     "reasons_not_servable": {
-      "anyOf": [
-        {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        {
-          "type": "null"
-        }
-      ]
+      "type": ["null", "string"]
     },
     "servable": {
       "type": ["null", "boolean"]

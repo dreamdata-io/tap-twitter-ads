@@ -13,26 +13,14 @@
       "type": ["null", "string"],
       "format": "date-time"
     },
-    "dimensions": { 
-      "$ref": "dimensions.json" 
+    "dimensions": {
+      "$ref": "dimensions.json"
     },
-    "engagement": { 
-      "$ref": "engagement_all.json" 
+    "engagement": {
+      "$ref": "engagement_all.json"
     },
-    "billing": { 
-      "$ref": "billing.json" 
-    },
-    "video": { 
-      "$ref": "video.json" 
-    },
-    "media": { 
-      "$ref": "media.json" 
-    },
-    "web_conversion": { 
-      "$ref": "web_conversion.json" 
-    },
-    "mobile_conversion": { 
-      "$ref": "mobile_conversion.json" 
+    "billing": {
+      "$ref": "billing.json"
     }
   }
 }
