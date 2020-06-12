@@ -54,9 +54,9 @@ def flatten_streams():
     for stream_name, endpoint_config in STREAMS.items():
         flat_streams[stream_name] = endpoint_config
         # Loop through children
-        children = endpoint_config.get('children')
+        children = endpoint_config.get("children")
         if children:
             for child_stream_name, child_endpoint_config in children.items():
                 flat_streams[child_stream_name] = child_endpoint_config
-                flat_streams[child_stream_name]['parent_stream'] = stream_name
+                flat_streams[child_stream_name]["parent_stream"] = stream_name
     return flat_streams
