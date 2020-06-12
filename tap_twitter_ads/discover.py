@@ -12,16 +12,20 @@ def discover(reports):
 
         table_metadata = {}
         for entry in mdata:
-            if entry.get('breadcrumb') == ():
-                table_metadata = entry.get('metadata', {})
-        key_properties = table_metadata.get('table-key-properties')
+            if entry.get("breadcrumb") == ():
+                table_metadata = entry.get("metadata", {})
+        key_properties = table_metadata.get("table-key-properties")
+        replication_method = table_metadata.get("forced-replication-method")
 
-        catalog.streams.append(CatalogEntry(
-            stream=stream_name,
-            tap_stream_id=stream_name,
-            key_properties=key_properties,
-            schema=schema,
-            metadata=mdata
-        ))
+        catalog.streams.append(
+            CatalogEntry(
+                stream=stream_name,
+                tap_stream_id=stream_name,
+                key_properties=key_properties,
+                replication_method=replication_method,
+                schema=schema,
+                metadata=mdata,
+            )
+        )
 
     return catalog
