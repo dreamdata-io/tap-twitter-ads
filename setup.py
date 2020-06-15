@@ -12,7 +12,7 @@ setup(
     install_requires=[
         "backoff==1.8.0",
         "requests==2.23.0",
-        "singer-python==5.9.0",
+        "singer-python==5.8.1",
         "twitter-ads==7.0.0",
     ],
     extras_require={"dev": ["pylint", "ipdb", "nose",]},
