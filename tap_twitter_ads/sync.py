@@ -13,8 +13,8 @@ from twitter_ads.http import Request
 from twitter_ads.error import Error
 from twitter_ads.utils import split_list
 
-from tap_twitter_ads.transform import transform_record, transform_report
-from tap_twitter_ads.streams import flatten_streams
+from .transform import transform_record, transform_report
+from .streams import flatten_streams
 
 
 LOGGER = singer.get_logger()
@@ -26,17 +26,6 @@ PLACEMENTS = [
     "ALL_ON_TWITTER",  # All possible placement types on Twitter
     "PUBLISHER_NETWORK",  # On the Twitter Audience Platform
 ]
-
-
-def write_schema(catalog, stream_name):
-    stream = catalog.get_stream(stream_name)
-    schema = stream.schema.to_dict()
-    LOGGER.info("Stream: {} - Writing schema".format(stream_name))
-    try:
-        singer.write_schema(stream_name, schema, stream.key_properties)
-    except OSError as err:
-        LOGGER.error("Stream: {} - OS Error writing schema".format(stream_name))
-        raise err
 
 
 def write_record(stream_name, record, time_extracted):
@@ -123,23 +112,6 @@ def get_async_data(report_name, client, url):
     return response_body
 
 
-# List selected fields from stream catalog
-def get_selected_fields(catalog, stream_name):
-    stream = catalog.get_stream(stream_name)
-    mdata = metadata.to_map(stream.metadata)
-    mdata_list = singer.metadata.to_list(mdata)
-    selected_fields = []
-    for entry in mdata_list:
-        field = None
-        try:
-            field = entry["breadcrumb"][1]
-            if entry.get("metadata", {}).get("selected", False):
-                selected_fields.append(field)
-        except IndexError:
-            pass
-    return selected_fields
-
-
 def remove_minutes_local(dttm, tzone):
     new_dttm = dttm.astimezone(tzone).replace(minute=0, second=0, microsecond=0)
     return new_dttm
@@ -168,7 +140,6 @@ def update_currently_syncing(state, stream_name):
 # from sync.py
 def sync_endpoint(
     client,
-    catalog,
     state,
     start_date,
     stream_name,
@@ -178,7 +149,6 @@ def sync_endpoint(
     parent_ids=None,
     child_streams=None,
 ):
-
     # endpoint_config variables
     path = endpoint_config.get("path")
     LOGGER.info("Stream: {} - endpoint_config: {}".format(stream_name, endpoint_config))
@@ -264,11 +234,6 @@ def sync_endpoint(
         # time_extracted: datetime when the data was extracted from the API
         time_extracted = utils.now()
 
-        # Get stream metadata from catalog (for masking and validation)
-        stream = catalog.get_stream(stream_name)
-        schema = stream.schema.to_dict()
-        stream_metadata = metadata.to_map(stream.metadata)
-
         i = 0
         with metrics.record_counter(stream_name) as counter:
             # Loop thru cursor records, break out if no more data or bookmark_value < last_dttm
@@ -348,16 +313,10 @@ def sync_endpoint(
                 if add_account_id:
                     prepared_record["account_id"] = account_id
 
-                # Transform record with Singer Transformer
-                with Transformer() as transformer:
-                    transformed_record = transformer.transform(
-                        prepared_record, schema, stream_metadata
-                    )
-
-                    write_record(
-                        stream_name, transformed_record, time_extracted=time_extracted
-                    )
-                    counter.increment()
+                write_record(
+                    stream_name, prepared_record, time_extracted=time_extracted
+                )
+                counter.increment()
 
                 # Append parent_id to parent_ids
                 parent_id = record_dict.get(parent_id_field)
@@ -381,15 +340,6 @@ def sync_endpoint(
                             child_stream_name, stream_name, account_id
                         )
                     )
-                    # pylint: enable=line-too-long
-                    # Write schema and log selected fields for stream
-                    write_schema(catalog, child_stream_name)
-                    selected_fields = get_selected_fields(catalog, child_stream_name)
-                    LOGGER.info(
-                        "Child Stream: {} - selected_fields: {}".format(
-                            child_stream_name, selected_fields
-                        )
-                    )
 
                     total_child_records = 0
                     child_total_records = 0
@@ -408,7 +358,6 @@ def sync_endpoint(
 
                         child_total_records = sync_endpoint(
                             client=client,
-                            catalog=catalog,
                             state=state,
                             start_date=start_date,
                             stream_name=child_stream_name,
@@ -801,7 +750,6 @@ def get_async_results_urls(client, account_id, report_name, queued_job_ids):
 
 def sync_report(
     client,
-    catalog,
     state,
     start_date,
     report_name,
@@ -814,7 +762,6 @@ def sync_report(
 
     # PROCESS:
     # Outer-outer loop (in sync): loop through accounts
-    # Outer loop (in sync): loop through reports selected in catalog
     #   Each report definition: name, entity, segment, granularity
     #
     # For each Report:
@@ -1062,11 +1009,6 @@ def sync_report(
     )
     LOGGER.info("async_results_urls = {}".format(async_results_urls))  # COMMENT OUT
 
-    # Get stream_metadata from catalog (for Transformer masking and validation below)
-    stream = catalog.get_stream(report_name)
-    schema = stream.schema.to_dict()
-    stream_metadata = metadata.to_map(stream.metadata)
-
     # ASYNC RESULTS DOWNLOAD / PROCESS LOOP
     # RISK: What if some reports error or don't finish?
     # Possibly move this code block withing ASYNC Status Check
@@ -1108,15 +1050,8 @@ def sync_report(
                 if end_dttm > max_bookmark_dttm:  # Datetime comparison
                     max_bookmark_value = end_time  # String
 
-                with Transformer() as transformer:
-                    transformed_record = transformer.transform(
-                        record, schema, stream_metadata
-                    )
-
-                    write_record(
-                        report_name, transformed_record, time_extracted=time_extracted
-                    )
-                    counter.increment()
+                write_record(report_name, record, time_extracted=time_extracted)
+                counter.increment()
 
         # Increment total_records
         total_records = total_records + counter.value
@@ -1130,27 +1065,24 @@ def sync_report(
 
 
 # Sync - main function to loop through select streams to sync_endpoints and sync_reports
-def sync(client, config, catalog, state):
+def sync(client, config, state):
     # Get config parameters
     account_list = config.get("account_ids").replace(" ", "").split(",")
     country_code_list = config.get("country_codes", "US").replace(" ", "").split(",")
     start_date = config.get("start_date")
-    reports = config.get("reports", [])
+    reports = [
+        {
+            "name": "campaign_events",
+            "entity": "CAMPAIGN",
+            "segment": "NO_SEGMENT",
+            "granularity": "DAY",
+        }
+    ]
 
-    # Get selected_streams from catalog, based on state last_stream
     #   last_stream = Previous currently synced stream, if the load was interrupted
     last_stream = singer.get_currently_syncing(state)
     LOGGER.info("Last/Currently Syncing Stream: {}".format(last_stream))
 
-    # Get ALL selected streams from catalog
-    selected_streams = []
-    for stream in catalog.get_selected_streams(state):
-        selected_streams.append(stream.stream)
-    LOGGER.info("Sync Selected Streams: {}".format(selected_streams))
-    if not selected_streams:
-        return
-
-    # Get lists of parent and child streams to sync (from streams.py and catalog)
     # For children, ensure that dependent parent_stream is included
     parent_streams = []
     child_streams = []
@@ -1160,24 +1092,18 @@ def sync(client, config, catalog, state):
     for stream_name, stream_metadata in flat_streams.items():
         # If stream has a parent_stream, then it is a child stream
         parent_stream = stream_metadata.get("parent_stream")
-        # Append selected parent streams
-        if not parent_stream and stream_name in selected_streams:
-            parent_streams.append(stream_name)
-        # Append selected child streams
-        elif parent_stream and stream_name in selected_streams:
+        if parent_stream:
             child_streams.append(stream_name)
-            # Append un-selected parent streams of selected children
-            if parent_stream not in selected_streams:
-                parent_streams.append(parent_stream)
+        else:
+            parent_streams.append(stream_name)
+
     LOGGER.info("Sync Parent Streams: {}".format(parent_streams))
     LOGGER.info("Sync Child Streams: {}".format(child_streams))
 
-    # Get list of report streams to sync (from config and catalog)
     report_streams = []
     for report in reports:
         report_name = report.get("name")
-        if report_name in selected_streams:
-            report_streams.append(report_name)
+        report_streams.append(report_name)
     LOGGER.info("Sync Report Streams: {}".format(report_streams))
 
     # ACCOUNT_ID OUTER LOOP
@@ -1195,17 +1121,8 @@ def sync(client, config, catalog, state):
                 )
             )
 
-            # Write schema and log selected fields for stream
-            write_schema(catalog, stream_name)
-
-            selected_fields = get_selected_fields(catalog, stream_name)
-            LOGGER.info(
-                "Stream: {} - selected_fields: {}".format(stream_name, selected_fields)
-            )
-
             total_records = sync_endpoint(
                 client=client,
-                catalog=catalog,
                 state=state,
                 start_date=start_date,
                 stream_name=stream_name,
@@ -1271,19 +1188,8 @@ def sync(client, config, catalog, state):
                     )
                 )
 
-                # Write schema and log selected fields for stream
-                write_schema(catalog, report_name)
-
-                selected_fields = get_selected_fields(catalog, report_name)
-                LOGGER.info(
-                    "Report: {} - selected_fields: {}".format(
-                        report_name, selected_fields
-                    )
-                )
-
                 total_records = sync_report(
                     client=client,
-                    catalog=catalog,
                     state=state,
                     start_date=start_date,
                     report_name=report_name,
