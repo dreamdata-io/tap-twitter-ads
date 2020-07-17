@@ -6,8 +6,7 @@ import argparse
 from twitter_ads.client import Client
 import singer
 from singer import metadata, utils
-from tap_twitter_ads.discover import discover
-from tap_twitter_ads.sync import sync
+from .sync import sync
 
 
 LOGGER = singer.get_logger()
@@ -20,13 +19,6 @@ REQUIRED_CONFIG_KEYS = [
     "access_token_secret",
     "account_ids",
 ]
-
-
-def do_discover(reports):
-    LOGGER.info("Starting discover")
-    catalog = discover(reports)
-    json.dump(catalog.to_dict(), sys.stdout, indent=2)
-    LOGGER.info("Finished discover")
 
 
 @singer.utils.handle_top_exception(LOGGER)
@@ -56,22 +48,7 @@ def main():
     if parsed_args.state:
         state = parsed_args.state
 
-    catalog = parsed_args.catalog
-
-    # reports = config.get("reports", {})
-    reports = [
-        {
-            "name": "campaign_events",
-            "entity": "CAMPAIGN",
-            "segment": "NO_SEGMENT",
-            "granularity": "DAY",
-        }
-    ]
-
-    if parsed_args.discover:
-        do_discover(reports)
-    elif parsed_args.catalog:
-        sync(client=client, config=config, catalog=catalog, state=state)
+    sync(client=client, config=config, state=state)
 
 
 if __name__ == "__main__":

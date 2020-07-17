@@ -20,6 +20,7 @@ setup(
           [console_scripts]
           tap-twitter-ads=tap_twitter_ads:main
       """,
-    packages=find_packages(),
+    packages=["tap_twitter_ads"],
     package_data={"tap_twitter_ads": ["schemas/*.json", "schemas/shared/*.json"]},
+    include_package_data=True,
 )
